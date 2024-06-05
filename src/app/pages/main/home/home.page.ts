@@ -16,9 +16,10 @@ export class HomePage implements OnInit {
   firebaseSvc = inject(FirebaseService);
   utilsSvc = inject(UtilsService);
 
-
   products: Product[] = [];
+  filteredProducts: Product[] = [];
   loading: boolean = false;
+  searchTerm: string = '';
 
   ngOnInit() {
   }
@@ -31,7 +32,6 @@ export class HomePage implements OnInit {
     this.getProducts();
   }
 
-
   doRefresh(event) {
     setTimeout(() => {
       this.getProducts();
@@ -41,7 +41,7 @@ export class HomePage implements OnInit {
 
   // ====== Obtener ganancias =====
   getProfits() {
-    return this.products.reduce((index, product) => index + product.price * product.soldUnits, 0);
+    return this.filteredProducts.reduce((index, product) => index + product.price * product.soldUnits, 0);
   }
 
   // ====== Obtener productos =====
@@ -55,13 +55,11 @@ export class HomePage implements OnInit {
       // where('soldUnits', '>', 30)   
     ]
 
-
-
     let sub = this.firebaseSvc.getCollectionData(path, query).subscribe({
       next: (res: any) => {
         console.log(res);
         this.products = res;
-
+        this.filterProducts();
         this.loading = false;
 
         sub.unsubscribe();
@@ -69,9 +67,17 @@ export class HomePage implements OnInit {
     })
   }
 
+  // ====== Filtrar productos =====
+  filterProducts() {
+    const term = this.searchTerm.toLowerCase();
+    this.filteredProducts = this.products.filter(p => 
+      p.name.toLowerCase().includes(term) || 
+      p.price.toString().includes(term)
+    );
+  }
+
   // ====== Agregar o actualizar producto =====
   async addUpdateProduct(product?: Product) {
-
     let success = await this.utilsSvc.presentModal({
       component: AddUpdateProductComponent,
       cssClass: 'add-update-modal',
@@ -80,7 +86,6 @@ export class HomePage implements OnInit {
 
     if (success) this.getProducts();
   }
-
 
   // ====== Confirmar eliminación del producto =====
   async confirmDeleteProduct(product: Product) {
@@ -99,13 +104,10 @@ export class HomePage implements OnInit {
         }
       ]
     });
-
   }
-
 
   // ======== Eliminar Producto =======
   async deleteProduct(product: Product) {
-
     let path = `users/${this.user().uid}/products/${product.id}`
 
     const loading = await this.utilsSvc.loading();
@@ -115,7 +117,6 @@ export class HomePage implements OnInit {
     await this.firebaseSvc.deleteFile(imagePath);
 
     this.firebaseSvc.deleteDocument(path).then(async res => {
-
       this.products = this.products.filter(p => p.id !== product.id);
 
       this.utilsSvc.presentToast({
@@ -125,7 +126,6 @@ export class HomePage implements OnInit {
         position: 'middle',
         icon: 'checkmark-circle-outline'
       })
-
     }).catch(error => {
       console.log(error);
 
@@ -136,11 +136,8 @@ export class HomePage implements OnInit {
         position: 'middle',
         icon: 'alert-circle-outline'
       })
-
     }).finally(() => {
       loading.dismiss();
     })
-
-
   }
 }
